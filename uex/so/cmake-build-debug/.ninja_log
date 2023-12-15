@@ -1,0 +1,7 @@
+# ninja log v5
+28	634	1702663395237780564	CMakeFiles/new_target.dir/mainCopy2.c.o	721b5ed7b63bef63
+7	220	1702670867139378426	build.ninja	dadf11b9132d7215
+6	283	1702666106511970575	CMakeFiles/so.dir/main.c.o	82ae09f199f221ca
+12	618	1702661836339930980	CMakeFiles/so.dir/mainCopy2.c.o	b3025f9a44f8eb73
+2	975	1702666580751850530	CMakeFiles/new_target.dir/mainCopy.c.o	beaf04c13ba85d0b
+1	1000	1702666942007819451	CMakeFiles/so.dir/mainCopy.c.o	bfc19d455caca6d8
