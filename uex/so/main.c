@@ -10,17 +10,15 @@
 #include <time.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <dirent.h>
 
 #include "getPrimesTotal.h"
 
 // Declarar constantes propias del programa
 #define FILAS 15 // Número de filas de la matriz
-#define COLUMNAS 5 // Número de columnas de la matriz
+#define COLUMNAS 1000 // Número de columnas de la matriz
 #define MAXVALUE 30001 // Valor máximo de los elementos de la matriz
 #define NUMPROCESOSNIVEL2 3
 #define NUMPROCESOSNIVEL3 5
-int tuberia[NUMPROCESOSNIVEL2];  // Tuberías para comunicación con procesos de nivel 2
 
 // Constantes para colores ANSI
 #define ROJO "\x1b[31m"
@@ -47,7 +45,7 @@ void crearMatrizAleatoria(int matriz[FILAS][COLUMNAS]);
 
 void imprimirMatriz(int matriz[FILAS][COLUMNAS]);
 
-void asignarTareas(int inicio, int fin, int procesos[], int matriz[FILAS][COLUMNAS], pid_t idNivel2, int tuberia);
+void asignarTareas(int inicio, int fin, int procesos[], int matriz[FILAS][COLUMNAS], pid_t idNivel2);
 
 void procesarFila(int fila, int resultados[], int matriz[FILAS][COLUMNAS], pid_t idNivel2);
 
@@ -58,15 +56,10 @@ void mostrarResultados(int resultados[], int total);
 void escribirEnArchivo(char *nombreArchivo, char *formato, ...);
 
 /**
- * @Description Clase que muestra la cantidad de números primos presentes
- * en una matriz de 15 filas por 1000 columnas, donde cada número es elegido
- * aleatoriamente entre 0 y 30000. La tarea se lleva a cabo * mediante la creación
- * de procesos jerárquicos en tres niveles, cada uno encargado de analizar una parte
- * específica de la matriz y devolver los resultados a su proceso padre.
+ * Versión 2 del programa->sin tuberías.
  * @author Jose Luis Obiang Ela Nanguang
- * @brief Funcion principal del programa
  * @date 2021-01-15
- * @version 1.0
+ * @version 2.0
  * @return 0
  */
 int main() {
@@ -78,12 +71,6 @@ int main() {
 
     // Establece el manejador_senial como el manejador de señal para la señal SIGINT (Interrupción desde el teclado)
     signal(SIGINT, manejador_senial);
-
-    // Crear la tubería
-    if (pipe(tuberia) == -1) {
-        perror("Error al crear la tubería");
-        exit(1);
-    }
 
     int matriz[FILAS][COLUMNAS]; // Matriz de enteros
     crearMatrizAleatoria(matriz); // Crea una matriz aleatoria
@@ -136,7 +123,7 @@ int main() {
                 fin = 14;
             }
 
-            asignarTareas(inicio, fin, resultados, matriz, getpid(), tuberia[1]);
+            asignarTareas(inicio, fin, resultados, matriz, getpid());
             exit(0);
         } else if (pid[i] == -1) { // -1->Error al crear el proceso hijo
             perror("Error al crear el proceso hijo");
@@ -226,7 +213,7 @@ void crearMatrizAleatoria(int matriz[FILAS][COLUMNAS]) {
  * @param matriz Matriz de tipo entero que contiene la matriz a procesar
  * @param idNivel2 ID del proceso padre
  */
-void asignarTareas(int inicio, int fin, int procesos[], int matriz[FILAS][COLUMNAS], pid_t idNivel2, int tuberia) {
+void asignarTareas(int inicio, int fin, int procesos[], int matriz[FILAS][COLUMNAS], pid_t idNivel2) {
     int primosEncontrados[FILAS * COLUMNAS];
     int contadorPrimos = 0;
 
@@ -235,20 +222,13 @@ void asignarTareas(int inicio, int fin, int procesos[], int matriz[FILAS][COLUMN
 
         if (pidN3 == 0) {
             // Código de los procesos hijos de nivel 3
-            close(tuberia); // Cerrar el extremo de lectura de la tubería en el proceso hijo
-
-            // Código de los procesos hijos de nivel 3
             printf("%s🔍 ==> Proceso hijo de nivel 3 (%d): Inicio de ejecución%s\n", AZUL, getpid(), RESET);
             procesarFila(fila, procesos, matriz, idNivel2);
-
             exit(0);
         } else if (pidN3 == -1) {
             perror("Error al crear el proceso hijo de nivel 3");
             exit(1);
-        } else {
-            close(tuberia);
         }
-
     }
 
     // Esperar a que terminen los procesos de nivel 3
@@ -309,12 +289,13 @@ void procesarFila(int fila, int resultados[], int matriz[FILAS][COLUMNAS], pid_t
            AZUL, getpid(), contador, fila, idNivel2, RESET);
     resultados[fila] = contador;
 
+
     char nombreArchivoN3[50];
 
     for (int j = 0; j < COLUMNAS; j++) {
         if (esPrimo[matriz[fila][j]]) {
-            sprintf(nombreArchivoN3, NIVEL3_FILE, getpid());
             // Almacenar resultados del proceso de nivel 3 en nuevos ficheros en la carpeta files/nivel3
+            sprintf(nombreArchivoN3, NIVEL3_FILE, getpid());
             escribirEnArchivo(nombreArchivoN3, "==>Inicio de ejecución del proceso\n");
             escribirEnArchivo(nombreArchivoN3, "Proceso Padre(%d)->Proceso hijo de nivel 3 creado: %d\n", idNivel2,
                               getpid());
@@ -357,10 +338,6 @@ void mostrarResultados(int resultados[], int total) {
     printf("\n\t%s|--------------------------------------------|%s\n\n", AMARILLO, RESET);
 }
 
-// Función que verifica si un archivo existe
-int archivoExiste(const char *nombreArchivo) {
-    return access(nombreArchivo, F_OK) == 0;
-}
 
 /**
  * Almacena información en un fichero
@@ -382,6 +359,7 @@ void escribirEnArchivo(char *nombreArchivo, char *formato, ...) {
 
     fclose(archivo); // Cerrar el archivo
 
+
 }
 
 /**
@@ -391,7 +369,7 @@ void escribirEnArchivo(char *nombreArchivo, char *formato, ...) {
 void imprimirMatriz(int matriz[FILAS][COLUMNAS]) {
     // Imprimir la matriz con colores y emojis
     printf("\n\t%s🔢 Matriz generada aleatoriamente:%s\n", AZUL, RESET);
-    printf("\t%s|---------------Matriz-------------|%s\n", AMARILLO, RESET);
+    printf("\t%s|-----------Matriz-----------|%s\n", AMARILLO, RESET);
     printf("\t%s|  %sFila%s  |  %sColumna%s  |  %sValor%s  |%s\n", AMARILLO, AMARILLO, RESET, AMARILLO, RESET, AMARILLO,
            RESET, RESET);
     for (int i = 0; i < FILAS; i++) {
@@ -402,39 +380,4 @@ void imprimirMatriz(int matriz[FILAS][COLUMNAS]) {
         printf("\t%s|----------------------------------|%s\n", AMARILLO, RESET);
     }
     printf("\n");
-}
-
-/**
- * Elimina todos los ficheros en una carpeta
- * @param carpeta Constante que contiene el nombre de la carpeta
- */
-void eliminarArchivosEnCarpeta(const char *carpeta) {
-    DIR *dir;
-    struct dirent *entrada;
-
-    // Abrir el directorio
-    dir = opendir(carpeta);
-    if (dir == NULL) {
-        perror("==>No se pudo abrir el directorio");
-    }
-
-    // Iterar sobre los archivos en el directorio
-    while ((entrada = readdir(dir)) != NULL) {
-        // Construir la ruta completa del archivo
-        char rutaArchivo[PATH_MAX];
-        snprintf(rutaArchivo, sizeof(rutaArchivo), "%s/%s", carpeta, entrada->d_name);
-
-        // Verificar si es un archivo y no un directorio
-        if (entrada->d_type == DT_REG) {
-            // Eliminar el archivo
-            if (remove(rutaArchivo) != 0) {
-                perror("==>Error al eliminar el archivo");
-            } else {
-                printf("%s==>Archivo eliminado: %s\n", VERDE, rutaArchivo);
-            }
-        }
-    }
-
-    // Cerrar el directorio
-    closedir(dir);
 }
